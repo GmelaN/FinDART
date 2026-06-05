@@ -53,8 +53,12 @@ pipeline {
         stage('Health Check') {
             steps {
                 sh '''
+                set -a
+                . /opt/findart/.env
+                set +a
+        
                 sleep 5
-                curl -fsS "http://${APP_BIND_HOST}:8000/health"
+                curl -fsS "$HEALTH_URL"
                 '''
             }
         }
