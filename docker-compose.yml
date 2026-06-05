@@ -1,0 +1,12 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: findart-api:latest
+    container_name: findart-api
+    restart: unless-stopped
+    env_file:
+      - /opt/findart/.env
+    ports:
+      - "${APP_BIND_HOST:-127.0.0.1}:8000:8000"
