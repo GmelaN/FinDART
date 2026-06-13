@@ -4,6 +4,7 @@ import json
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -17,6 +18,18 @@ from app.schemas import (
 )
 
 router = APIRouter()
+
+
+def _db_error(status_code: int, endpoint: str, row_index: int, row_key: str | None, error: SQLAlchemyError) -> HTTPException:
+    original = getattr(error, "orig", error)
+    detail = {
+        "endpoint": endpoint,
+        "row_index": row_index,
+        "row_key": row_key,
+        "error_type": type(original).__name__,
+        "message": str(original),
+    }
+    return HTTPException(status_code=status_code, detail=detail)
 
 
 def _company_id(db: Session, corp_code: str) -> int:
@@ -46,34 +59,58 @@ def _period_dates(row: FinancialStatementItemIngest) -> tuple[date, date]:
 
 @router.post("/companies", response_model=IngestResult)
 def ingest_companies(rows: list[CompanyIngest], db: Session = Depends(get_db)) -> IngestResult:
-    for row in rows:
-        db.execute(
-            text(
-                """
-                insert into companies (
-                    corp_code, stock_code, corp_name, corp_name_eng, market, sector, industry,
-                    fiscal_month, listed_at, delisted_at, is_active, updated_at
+    for index, row in enumerate(rows):
+        try:
+            existing_id = db.execute(
+                text("select id from companies where corp_code = :corp_code or stock_code = :stock_code limit 1"),
+                {"corp_code": row.corp_code, "stock_code": row.stock_code},
+            ).scalar()
+            payload = row.model_dump()
+            if existing_id is None:
+                db.execute(
+                    text(
+                        """
+                        insert into companies (
+                            corp_code, stock_code, corp_name, corp_name_eng, market, sector, industry,
+                            fiscal_month, listed_at, delisted_at, is_active
+                        )
+                        values (
+                            :corp_code, :stock_code, :corp_name, :corp_name_eng, :market, :sector, :industry,
+                            :fiscal_month, :listed_at, :delisted_at, :is_active
+                        )
+                        """
+                    ),
+                    payload,
                 )
-                values (
-                    :corp_code, :stock_code, :corp_name, :corp_name_eng, :market, :sector, :industry,
-                    :fiscal_month, :listed_at, :delisted_at, :is_active, now()
+            else:
+                payload["id"] = existing_id
+                db.execute(
+                    text(
+                        """
+                        update companies set
+                            corp_code = :corp_code,
+                            stock_code = :stock_code,
+                            corp_name = :corp_name,
+                            corp_name_eng = :corp_name_eng,
+                            market = :market,
+                            sector = :sector,
+                            industry = :industry,
+                            fiscal_month = :fiscal_month,
+                            listed_at = :listed_at,
+                            delisted_at = :delisted_at,
+                            is_active = :is_active,
+                            updated_at = now()
+                        where id = :id
+                        """
+                    ),
+                    payload,
                 )
-                on conflict (corp_code) do update set
-                    stock_code = excluded.stock_code,
-                    corp_name = excluded.corp_name,
-                    corp_name_eng = excluded.corp_name_eng,
-                    market = excluded.market,
-                    sector = excluded.sector,
-                    industry = excluded.industry,
-                    fiscal_month = excluded.fiscal_month,
-                    listed_at = excluded.listed_at,
-                    delisted_at = excluded.delisted_at,
-                    is_active = excluded.is_active,
-                    updated_at = now()
-                """
-            ),
-            row.model_dump(),
-        )
+        except IntegrityError as error:
+            db.rollback()
+            raise _db_error(409, "companies", index, row.corp_code, error) from error
+        except SQLAlchemyError as error:
+            db.rollback()
+            raise _db_error(500, "companies", index, row.corp_code, error) from error
     db.commit()
     return IngestResult(received=len(rows), inserted_or_updated=len(rows))
 
