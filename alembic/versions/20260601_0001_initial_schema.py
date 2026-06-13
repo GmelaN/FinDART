@@ -24,8 +24,6 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.execute(
         """
-        drop table if exists collection_schedules cascade;
-        drop table if exists data_collection_jobs cascade;
         drop table if exists risk_assessments cascade;
         drop table if exists metric_values cascade;
         drop table if exists metric_snapshots cascade;

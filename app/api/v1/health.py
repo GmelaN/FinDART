@@ -23,8 +23,6 @@ def health_dependencies(db: Session = Depends(get_db)) -> dict:
         "status": "ok",
         "dependencies": {
             "database": "ok",
-            "dart": "configured",
-            "finance_datareader": "not_checked",
         },
     }
 

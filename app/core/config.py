@@ -13,7 +13,6 @@ class Settings(BaseSettings):
     postgre_host: str = Field(alias="POSTGRE_HOST")
     postgre_port: int = Field(alias="POSTGRE_PORT")
     postgre_db: str = Field(alias="POSTGRE_DB")
-    opendart_api_key: str = Field(alias="OPENDART_API_KEY")
 
     @cached_property
     def database_url(self) -> str:

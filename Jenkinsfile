@@ -73,7 +73,6 @@ pipeline {
             echo 'finDART deployment failed.'
             sh 'docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file /opt/findart/.env ps || true'
             sh 'docker logs findart-api --tail=100 || true'
-            sh 'docker logs findart-worker --tail=100 || true'
         }
     }
 }

@@ -10,11 +10,3 @@ services:
       - /opt/findart/.env
     ports:
       - "${APP_BIND_HOST:-127.0.0.1}:8000:8000"
-
-  worker:
-    image: findart-api:latest
-    container_name: findart-worker
-    restart: unless-stopped
-    env_file:
-      - /opt/findart/.env
-    command: ["python", "-m", "app.worker", "run", "--sleep", "5"]
