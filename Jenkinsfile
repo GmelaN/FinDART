@@ -9,7 +9,7 @@ pipeline {
     environment {
         COMPOSE_PROJECT_NAME = 'findart'
         COMPOSE_FILE = 'docker-compose.yml'
-        ENV_PATH = '/opt/findart/.env'
+        ENV_PATH = '.env'
     }
 
     stages {
@@ -23,13 +23,13 @@ pipeline {
             steps {
                 withCredentials([file(credentialsId: 'FinDART-dotenv', variable: 'ENV_FILE')]) {
                     sh '''
-                    mkdir -p /opt/findart
+                    set -eu
                     install -m 600 "$ENV_FILE" "$ENV_PATH"
+                    test -s "$ENV_PATH"
                     '''
                 }
             }
         }
-
          stage('Build Image') {
             steps {
                 sh '''
