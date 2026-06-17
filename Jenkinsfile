@@ -20,6 +20,11 @@ pipeline {
 
         stage('Build Image') {
             steps {
+                withCredentials([file(credentialsId: 'FinDART-dotenv', variable: 'ENV_FILE')]) {
+                    sh '''
+                        scp -o StrictHostKeyChecking=no $ENV_FILE jenkins@${SERVER_IP}:/home/jenkins/findart/.env
+                    '''
+                }
                 sh '''
                 docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file /opt/findart/.env build api
                 '''
