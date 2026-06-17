@@ -22,51 +22,27 @@ pipeline {
         stage('Prepare Env') {
             steps {
                 echo 'Preparing .env file'
-        
+
                 withCredentials([file(credentialsId: 'FinDART-dotenv', variable: 'ENV_FILE')]) {
                     sh '''
-                    set -u
-        
-                    echo "Current user: $(id)"
-                    echo "Workspace: $PWD"
-                    echo "ENV_FILE path: $ENV_FILE"
-                    echo "ENV_PATH: $ENV_PATH"
-        
-                    if [ ! -r "$ENV_FILE" ]; then
-                        echo "ERROR: ENV_FILE is not readable"
-                        ls -l "$ENV_FILE" || true
-                        exit 1
-                    fi
-        
-                    echo "Credential file metadata:"
-                    ls -l "$ENV_FILE"
-        
-                    ENV_SIZE=$(wc -c < "$ENV_FILE" || echo 0)
-                    echo "Credential file size: ${ENV_SIZE} bytes"
-        
-                    if [ "$ENV_SIZE" -eq 0 ]; then
-                        echo "ERROR: Jenkins credential file is empty"
-                        exit 1
-                    fi
-        
+                    set -eu
+
                     cp "$ENV_FILE" "$ENV_PATH"
                     chmod 600 "$ENV_PATH"
-        
-                    if [ ! -s "$ENV_PATH" ]; then
-                        echo "ERROR: .env was not created or is empty"
-                        ls -l "$ENV_PATH" || true
-                        exit 1
-                    fi
-        
-                    echo ".env prepared successfully"
+                    test -s "$ENV_PATH"
+
+                    echo ".env prepared"
                     ls -l "$ENV_PATH"
                     '''
                 }
             }
         }
-         stage('Build Image') {
+
+        stage('Build Image') {
             steps {
                 sh '''
+                set -eu
+
                 docker compose \
                   -p "$COMPOSE_PROJECT_NAME" \
                   -f "$COMPOSE_FILE" \
@@ -79,7 +55,13 @@ pipeline {
         stage('Smoke Test') {
             steps {
                 sh '''
-                docker run --rm --env-file "$ENV_PATH" findart-api:latest python -m compileall app
+                set -eu
+
+                docker compose \
+                  -p "$COMPOSE_PROJECT_NAME" \
+                  -f "$COMPOSE_FILE" \
+                  --env-file "$ENV_PATH" \
+                  run --rm --no-deps api python -m compileall app
                 '''
             }
         }
@@ -87,7 +69,13 @@ pipeline {
         stage('DB Migration') {
             steps {
                 sh '''
-                docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$ENV_PATH" run --rm api alembic upgrade head
+                set -eu
+
+                docker compose \
+                  -p "$COMPOSE_PROJECT_NAME" \
+                  -f "$COMPOSE_FILE" \
+                  --env-file "$ENV_PATH" \
+                  run --rm api alembic upgrade head
                 '''
             }
         }
@@ -95,7 +83,13 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh '''
-                docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$ENV_PATH" up -d --remove-orphans
+                set -eu
+
+                docker compose \
+                  -p "$COMPOSE_PROJECT_NAME" \
+                  -f "$COMPOSE_FILE" \
+                  --env-file "$ENV_PATH" \
+                  up -d --remove-orphans
                 '''
             }
         }
@@ -104,16 +98,35 @@ pipeline {
             steps {
                 sh '''
                 set -eu
-        
+
+                echo "PWD=$PWD"
+                ls -l "$ENV_PATH"
+
+                ENV_FILE_ABS="$ENV_PATH"
+                case "$ENV_FILE_ABS" in
+                  /*) ;;
+                  *) ENV_FILE_ABS="$PWD/$ENV_FILE_ABS" ;;
+                esac
+
                 set -a
-                . "./$ENV_PATH"
+                . "$ENV_FILE_ABS"
                 set +a
-        
-                sleep 5
-                curl -fsS "$HEALTH_URL"
+
+                for i in $(seq 1 10); do
+                    if curl -fsS "$HEALTH_URL"; then
+                        exit 0
+                    fi
+
+                    echo "Health check retry: $i"
+                    sleep 3
+                done
+
+                echo "Health check failed: $HEALTH_URL"
+                exit 1
                 '''
             }
         }
+    }
 
     post {
         success {
@@ -122,8 +135,22 @@ pipeline {
 
         failure {
             echo 'finDART deployment failed.'
-            sh 'docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$ENV_PATH" ps || true'
-            sh 'docker logs findart-api --tail=100 || true'
+
+            sh '''
+            docker compose \
+              -p "$COMPOSE_PROJECT_NAME" \
+              -f "$COMPOSE_FILE" \
+              --env-file "$ENV_PATH" \
+              ps || true
+            '''
+
+            sh '''
+            docker compose \
+              -p "$COMPOSE_PROJECT_NAME" \
+              -f "$COMPOSE_FILE" \
+              --env-file "$ENV_PATH" \
+              logs --tail=100 api || true
+            '''
         }
     }
 }
