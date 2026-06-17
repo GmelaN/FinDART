@@ -9,6 +9,7 @@ pipeline {
     environment {
         COMPOSE_PROJECT_NAME = 'findart'
         COMPOSE_FILE = 'docker-compose.yml'
+        ENV_PATH = '/opt/findart/.env'
     }
 
     stages {
@@ -18,15 +19,25 @@ pipeline {
             }
         }
 
-        stage('Build Image') {
+        stage('Prepare Env') {
             steps {
                 withCredentials([file(credentialsId: 'FinDART-dotenv', variable: 'ENV_FILE')]) {
                     sh '''
-                        scp -o StrictHostKeyChecking=no $ENV_FILE jenkins@${SERVER_IP}:/home/jenkins/findart/.env
+                    mkdir -p /opt/findart
+                    install -m 600 "$ENV_FILE" "$ENV_PATH"
                     '''
                 }
+            }
+        }
+
+         stage('Build Image') {
+            steps {
                 sh '''
-                docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file /opt/findart/.env build api
+                docker compose \
+                  -p "$COMPOSE_PROJECT_NAME" \
+                  -f "$COMPOSE_FILE" \
+                  --env-file "$ENV_PATH" \
+                  build api
                 '''
             }
         }
@@ -34,7 +45,7 @@ pipeline {
         stage('Smoke Test') {
             steps {
                 sh '''
-                docker run --rm --env-file /opt/findart/.env findart-api:latest python -m compileall app
+                docker run --rm --env-file "$ENV_PATH" findart-api:latest python -m compileall app
                 '''
             }
         }
@@ -42,7 +53,7 @@ pipeline {
         stage('DB Migration') {
             steps {
                 sh '''
-                docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file /opt/findart/.env run --rm api alembic upgrade head
+                docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$ENV_PATH" run --rm api alembic upgrade head
                 '''
             }
         }
@@ -50,7 +61,7 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh '''
-                docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file /opt/findart/.env up -d --remove-orphans
+                docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$ENV_PATH" up -d --remove-orphans
                 '''
             }
         }
@@ -59,7 +70,7 @@ pipeline {
             steps {
                 sh '''
                 set -a
-                . /opt/findart/.env
+                . "$ENV_PATH"
                 set +a
         
                 sleep 5
