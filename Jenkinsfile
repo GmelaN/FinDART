@@ -9,6 +9,7 @@ pipeline {
     environment {
         COMPOSE_PROJECT_NAME = 'findart'
         COMPOSE_FILE = 'docker-compose.yml'
+        ENV_PATH = '.env'
     }
 
     stages {
@@ -18,10 +19,59 @@ pipeline {
             }
         }
 
-        stage('Build Image') {
+        stage('Prepare Env') {
+            steps {
+                echo 'Preparing .env file'
+        
+                withCredentials([file(credentialsId: 'FinDART-dotenv', variable: 'ENV_FILE')]) {
+                    sh '''
+                    set -u
+        
+                    echo "Current user: $(id)"
+                    echo "Workspace: $PWD"
+                    echo "ENV_FILE path: $ENV_FILE"
+                    echo "ENV_PATH: $ENV_PATH"
+        
+                    if [ ! -r "$ENV_FILE" ]; then
+                        echo "ERROR: ENV_FILE is not readable"
+                        ls -l "$ENV_FILE" || true
+                        exit 1
+                    fi
+        
+                    echo "Credential file metadata:"
+                    ls -l "$ENV_FILE"
+        
+                    ENV_SIZE=$(wc -c < "$ENV_FILE" || echo 0)
+                    echo "Credential file size: ${ENV_SIZE} bytes"
+        
+                    if [ "$ENV_SIZE" -eq 0 ]; then
+                        echo "ERROR: Jenkins credential file is empty"
+                        exit 1
+                    fi
+        
+                    cp "$ENV_FILE" "$ENV_PATH"
+                    chmod 600 "$ENV_PATH"
+        
+                    if [ ! -s "$ENV_PATH" ]; then
+                        echo "ERROR: .env was not created or is empty"
+                        ls -l "$ENV_PATH" || true
+                        exit 1
+                    fi
+        
+                    echo ".env prepared successfully"
+                    ls -l "$ENV_PATH"
+                    '''
+                }
+            }
+        }
+         stage('Build Image') {
             steps {
                 sh '''
-                docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file /opt/findart/.env build api
+                docker compose \
+                  -p "$COMPOSE_PROJECT_NAME" \
+                  -f "$COMPOSE_FILE" \
+                  --env-file "$ENV_PATH" \
+                  build api
                 '''
             }
         }
@@ -29,7 +79,7 @@ pipeline {
         stage('Smoke Test') {
             steps {
                 sh '''
-                docker run --rm --env-file /opt/findart/.env findart-api:latest python -m compileall app
+                docker run --rm --env-file "$ENV_PATH" findart-api:latest python -m compileall app
                 '''
             }
         }
@@ -37,7 +87,7 @@ pipeline {
         stage('DB Migration') {
             steps {
                 sh '''
-                docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file /opt/findart/.env run --rm api alembic upgrade head
+                docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$ENV_PATH" run --rm api alembic upgrade head
                 '''
             }
         }
@@ -45,7 +95,7 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh '''
-                docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file /opt/findart/.env up -d --remove-orphans
+                docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$ENV_PATH" up -d --remove-orphans
                 '''
             }
         }
@@ -54,7 +104,7 @@ pipeline {
             steps {
                 sh '''
                 set -a
-                . /opt/findart/.env
+                . "$ENV_PATH"
                 set +a
         
                 sleep 5
@@ -71,7 +121,7 @@ pipeline {
 
         failure {
             echo 'finDART deployment failed.'
-            sh 'docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file /opt/findart/.env ps || true'
+            sh 'docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$ENV_PATH" ps || true'
             sh 'docker logs findart-api --tail=100 || true'
         }
     }
