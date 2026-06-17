@@ -31,6 +31,16 @@ def upgrade() -> None:
         )
         """
     )
+    op.execute("alter table serving_pages add column if not exists page_type varchar(50) not null default 'today'")
+    op.execute("alter table serving_pages add column if not exists page_date date")
+    op.execute("alter table serving_pages add column if not exists market varchar(20) not null default 'KR'")
+    op.execute("alter table serving_pages add column if not exists user_id varchar(100) not null default ''")
+    op.execute("alter table serving_pages add column if not exists title varchar(300)")
+    op.execute("alter table serving_pages add column if not exists status varchar(30) not null default 'ready'")
+    op.execute("alter table serving_pages add column if not exists payload jsonb not null default '{}'::jsonb")
+    op.execute("alter table serving_pages add column if not exists generated_at timestamptz not null default now()")
+    op.execute("alter table serving_pages add column if not exists created_at timestamptz not null default now()")
+    op.execute("alter table serving_pages add column if not exists updated_at timestamptz not null default now()")
     op.execute(
         """
         create index if not exists idx_serving_pages_today_lookup
@@ -55,6 +65,16 @@ def upgrade() -> None:
         )
         """
     )
+    op.execute("alter table documents add column if not exists title varchar(500)")
+    op.execute("alter table documents add column if not exists source_type varchar(50)")
+    op.execute("alter table documents add column if not exists source_name varchar(200)")
+    op.execute("alter table documents add column if not exists source_url text")
+    op.execute("alter table documents add column if not exists summary_kr text")
+    op.execute("alter table documents add column if not exists raw_text text")
+    op.execute("alter table documents add column if not exists published_at timestamptz")
+    op.execute("alter table documents add column if not exists metadata jsonb")
+    op.execute("alter table documents add column if not exists created_at timestamptz not null default now()")
+    op.execute("alter table documents add column if not exists updated_at timestamptz not null default now()")
     op.execute("create index if not exists idx_documents_published_at on documents (published_at)")
 
     op.execute(
@@ -69,6 +89,11 @@ def upgrade() -> None:
         )
         """
     )
+    op.execute("alter table document_chunks add column if not exists doc_id varchar(120)")
+    op.execute("alter table document_chunks add column if not exists chunk_index integer")
+    op.execute("alter table document_chunks add column if not exists text text")
+    op.execute("alter table document_chunks add column if not exists metadata jsonb")
+    op.execute("alter table document_chunks add column if not exists created_at timestamptz not null default now()")
     op.execute("create index if not exists idx_document_chunks_doc_id on document_chunks (doc_id, chunk_index)")
 
     op.execute(
@@ -87,6 +112,15 @@ def upgrade() -> None:
         )
         """
     )
+    op.execute("alter table evidence_links add column if not exists target_type varchar(50)")
+    op.execute("alter table evidence_links add column if not exists target_id varchar(120)")
+    op.execute("alter table evidence_links add column if not exists section_key varchar(80)")
+    op.execute("alter table evidence_links add column if not exists doc_id varchar(120)")
+    op.execute("alter table evidence_links add column if not exists chunk_id varchar(120)")
+    op.execute("alter table evidence_links add column if not exists final_rank integer")
+    op.execute("alter table evidence_links add column if not exists score numeric(12, 8)")
+    op.execute("alter table evidence_links add column if not exists metadata jsonb")
+    op.execute("alter table evidence_links add column if not exists created_at timestamptz not null default now()")
     op.execute(
         """
         create index if not exists idx_evidence_links_target
