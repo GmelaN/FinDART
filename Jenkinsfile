@@ -10,7 +10,7 @@ pipeline {
         COMPOSE_PROJECT_NAME = 'findart'
         COMPOSE_FILE = 'docker-compose.yml'
         ENV_PATH = '.env'
-        HEALTH_URL=http://localhost:8000/health
+        HEALTH_URL = 'http://localhost:8000/health'
     }
 
     stages {
