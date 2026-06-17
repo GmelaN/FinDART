@@ -103,8 +103,10 @@ pipeline {
         stage('Health Check') {
             steps {
                 sh '''
+                set -eu
+        
                 set -a
-                . "$ENV_PATH"
+                . "./$ENV_PATH"
                 set +a
         
                 sleep 5
@@ -112,7 +114,6 @@ pipeline {
                 '''
             }
         }
-    }
 
     post {
         success {
