@@ -102,3 +102,48 @@ class IngestResult(BaseModel):
     received: int
     inserted_or_updated: int
 
+
+class TodayPageRead(BaseModel):
+    page_id: str
+    page_type: str
+    page_date: date
+    market: str
+    title: str | None = None
+    status: str
+    payload: dict[str, Any]
+    generated_at: datetime
+
+
+class TodaySectionRead(BaseModel):
+    page_id: str
+    page_date: date
+    market: str
+    status: str
+    generated_at: datetime
+    section: str
+    data: Any
+
+
+class TodayEvidenceDocumentRead(BaseModel):
+    doc_id: str
+    title: str
+    source_type: str | None = None
+    source_name: str | None = None
+    source_url: str | None = None
+    summary_kr: str | None = None
+    raw_text: str | None = None
+    published_at: datetime | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class TodayEvidenceChunkRead(BaseModel):
+    chunk_id: str
+    doc_id: str
+    text: str
+    metadata: dict[str, Any] | None = None
+
+
+class TodayEvidenceRead(BaseModel):
+    document: TodayEvidenceDocumentRead
+    chunk: TodayEvidenceChunkRead | None = None
+

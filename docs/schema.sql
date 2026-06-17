@@ -226,3 +226,64 @@ create table risk_assessments (
     unique (snapshot_id, model_version)
 );
 
+create table serving_pages (
+    page_id varchar(80) primary key,
+    page_type varchar(50) not null,
+    page_date date not null,
+    market varchar(20) not null,
+    user_id varchar(100) not null default '',
+    title varchar(300),
+    status varchar(30) not null default 'ready',
+    payload jsonb not null default '{}'::jsonb,
+    generated_at timestamptz not null default now(),
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
+
+create index idx_serving_pages_today_lookup
+    on serving_pages (page_type, page_date, market, user_id, generated_at desc);
+
+create table documents (
+    doc_id varchar(120) primary key,
+    title varchar(500) not null,
+    source_type varchar(50),
+    source_name varchar(200),
+    source_url text,
+    summary_kr text,
+    raw_text text,
+    published_at timestamptz,
+    metadata jsonb,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
+
+create index idx_documents_published_at on documents (published_at);
+
+create table document_chunks (
+    chunk_id varchar(120) primary key,
+    doc_id varchar(120) not null references documents (doc_id) on delete cascade,
+    chunk_index integer,
+    text text not null,
+    metadata jsonb,
+    created_at timestamptz not null default now()
+);
+
+create index idx_document_chunks_doc_id
+    on document_chunks (doc_id, chunk_index);
+
+create table evidence_links (
+    id bigserial primary key,
+    target_type varchar(50) not null,
+    target_id varchar(120) not null,
+    section_key varchar(80),
+    doc_id varchar(120) references documents (doc_id) on delete set null,
+    chunk_id varchar(120) references document_chunks (chunk_id) on delete set null,
+    final_rank integer,
+    score numeric(12, 8),
+    metadata jsonb,
+    created_at timestamptz not null default now()
+);
+
+create index idx_evidence_links_target
+    on evidence_links (target_type, target_id, section_key, final_rank);
+

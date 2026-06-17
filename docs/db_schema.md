@@ -18,6 +18,9 @@ erDiagram
     companies ||--o{ metric_snapshots : analyzed
     metric_snapshots ||--o{ metric_values : contains
     companies ||--o{ risk_assessments : assessed
+    documents ||--o{ document_chunks : split_into
+    documents ||--o{ evidence_links : referenced_by
+    document_chunks ||--o{ evidence_links : referenced_by
 ```
 
 ## Core Tables
@@ -96,6 +99,66 @@ Important indexes:
 ### Metrics and Risk
 
 `metric_definitions`, `metric_snapshots`, `metric_values`, and `risk_assessments` store calculated analysis outputs for read APIs. Calculation jobs are outside this API server.
+
+### `serving_pages`
+
+Prebuilt UI payloads for frontend serving. The Today screen reads this table as
+the primary path and does not join source tables to compose the screen.
+
+Important lookup:
+
+```sql
+select page_id, page_type, page_date, market, title, status, payload, generated_at
+from serving_pages
+where page_type = 'today'
+  and page_date = :date
+  and market = :market
+  and user_id = ''
+order by generated_at desc
+limit 1;
+```
+
+Important index:
+
+- `idx_serving_pages_today_lookup (page_type, page_date, market, user_id, generated_at desc)`
+
+For Today, `payload` is expected to contain:
+
+- `daily_indicators`
+- `market_regimes`
+- `headlines`
+- `issues`
+- `tracked_issues`
+- `events`
+
+### `documents`
+
+Source documents used for evidence drill-down. Today cards contain minimal
+evidence references in `serving_pages.payload`; this table provides full source
+metadata, summaries, raw text, and publication timestamps when the user opens a
+source.
+
+Important index:
+
+- `idx_documents_published_at (published_at)`
+
+### `document_chunks`
+
+Chunk-level evidence text for source documents.
+
+Important index:
+
+- `idx_document_chunks_doc_id (doc_id, chunk_index)`
+
+### `evidence_links`
+
+Optional normalized relation between generated serving pages and evidence
+documents/chunks. The Today API does not need this table to render the screen,
+but it is available for audit, debug, and future evidence ranking views.
+
+Important index:
+
+- `idx_evidence_links_target (target_type, target_id, section_key, final_rank)`
 
 ## Removed Runtime Tables
 
