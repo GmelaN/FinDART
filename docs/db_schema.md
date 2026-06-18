@@ -21,6 +21,7 @@ erDiagram
     documents ||--o{ document_chunks : split_into
     documents ||--o{ evidence_links : referenced_by
     document_chunks ||--o{ evidence_links : referenced_by
+    tracked_issues }o--|| serving_pages : complements
 ```
 
 ## Core Tables
@@ -130,6 +131,19 @@ For Today, `payload` is expected to contain:
 - `issues`
 - `tracked_issues`
 - `events`
+
+The API also exposes normalized `indicator_values` derived from
+`payload.daily_indicators` for interest rates, FX, inflation, and growth. Each
+group includes today's value and the previous value when the payload provides
+them.
+
+### `tracked_issues`
+
+User-specific issue subscriptions for the Today Issue Tracking panel.
+
+Unique key:
+
+- `(user_id, market, subscription_key)`
 
 ### `documents`
 

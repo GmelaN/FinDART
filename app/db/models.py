@@ -2,7 +2,7 @@ from datetime import date, datetime
 
 from typing import Any
 
-from sqlalchemy import BigInteger, Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, func
+from sqlalchemy import BigInteger, Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -74,6 +74,26 @@ class ServingPage(Base):
     status: Mapped[str] = mapped_column(String(30), default="ready")
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB)
     generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class TrackedIssue(Base):
+    __tablename__ = "tracked_issues"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "market",
+            "subscription_key",
+            name="uq_tracked_issues_user_market_key",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(100), default="")
+    market: Mapped[str] = mapped_column(String(20), default="KR")
+    subscription_key: Mapped[str] = mapped_column(String(200))
+    issue: Mapped[dict[str, Any]] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

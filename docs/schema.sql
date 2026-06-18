@@ -135,6 +135,17 @@ create table daily_prices (
 
 create index idx_daily_prices_date on daily_prices (trade_date);
 
+create table tracked_issues (
+    id bigserial primary key,
+    user_id varchar(100) not null default '',
+    market varchar(20) not null default 'KR',
+    subscription_key varchar(200) not null,
+    issue jsonb not null default '{}'::jsonb,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    unique (user_id, market, subscription_key)
+);
+
 create table corporate_events (
     id bigserial primary key,
     company_id bigint not null references companies (id) on delete cascade,

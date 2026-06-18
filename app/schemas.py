@@ -103,6 +103,13 @@ class IngestResult(BaseModel):
     inserted_or_updated: int
 
 
+class TodayIndicatorValues(BaseModel):
+    interest_rate: Any = None
+    fx: Any = None
+    inflation: Any = None
+    growth: Any = None
+
+
 class TodayPageRead(BaseModel):
     page_id: str
     page_type: str
@@ -110,6 +117,7 @@ class TodayPageRead(BaseModel):
     market: str
     title: str | None = None
     status: str
+    indicator_values: TodayIndicatorValues | None = None
     payload: dict[str, Any]
     generated_at: datetime
 
@@ -146,4 +154,17 @@ class TodayEvidenceChunkRead(BaseModel):
 class TodayEvidenceRead(BaseModel):
     document: TodayEvidenceDocumentRead
     chunk: TodayEvidenceChunkRead | None = None
+
+
+class TrackedIssueCreate(BaseModel):
+    subscription_key: str
+    issue: dict[str, Any]
+
+
+class TrackedIssueRead(BaseModel):
+    subscription_key: str
+    is_subscribed: bool = True
+    issue: dict[str, Any]
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
