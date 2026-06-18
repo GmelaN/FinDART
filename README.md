@@ -28,9 +28,15 @@ uvicorn app.main:app --reload
 
 - `GET /api/v1/health`
 - `GET /api/v1/health/dependencies`
-- `GET /api/v1/companies`
-- `GET /api/v1/companies/{company_id}`
-- `GET /api/v1/companies/by-stock/{stock_code}`
+- `GET /api/v1/today`
+- `GET /api/v1/today/indicators`
+- `GET /api/v1/today/headlines`
+- `GET /api/v1/today/issues`
+- `GET /api/v1/today/tracked-issues`
+- `POST /api/v1/today/tracked-issues`
+- `DELETE /api/v1/today/tracked-issues/{subscription_key}`
+- `GET /api/v1/today/events`
+- `GET /api/v1/today/evidence/{doc_id}`
 - `POST /api/v1/ingest/companies`
 - `POST /api/v1/ingest/company-listings`
 - `POST /api/v1/ingest/dart-filings`

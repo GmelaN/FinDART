@@ -28,14 +28,13 @@ https://findart.example.com/api/v1/health
 ```text
 GET  /api/v1/health
 GET  /api/v1/health/dependencies
-GET  /api/v1/companies
-GET  /api/v1/companies/by-stock/{stock_code}
-GET  /api/v1/companies/{company_id}
 GET  /api/v1/today
 GET  /api/v1/today/indicators
 GET  /api/v1/today/headlines
 GET  /api/v1/today/issues
 GET  /api/v1/today/tracked-issues
+POST /api/v1/today/tracked-issues
+DELETE /api/v1/today/tracked-issues/{subscription_key}
 GET  /api/v1/today/events
 GET  /api/v1/today/evidence/{doc_id}
 
@@ -75,44 +74,22 @@ Response:
 }
 ```
 
-## Companies
-
-### GET `/companies`
-
-Returns companies stored in the database.
-
-Query:
-
-| Name | Type | Default | Description |
-| --- | --- | --- | --- |
-| `market` | string | `KOSPI` | Market filter |
-| `q` | string nullable |  | Company name search or exact stock code |
-| `sector` | string nullable |  | Sector filter |
-| `is_active` | boolean | `true` | Active company filter |
-| `limit` | integer | `50` | Minimum `1`, maximum `200` |
-| `cursor` | integer nullable |  | Last seen company id |
-
-### GET `/companies/by-stock/{stock_code}`
-
-Returns one company by exact stock code.
-
-### GET `/companies/{company_id}`
-
-Returns one company by internal database id.
-
 ## Today
 
 Today endpoints read from `serving_pages.payload` first. Supporting tables such as
 `documents`, `document_chunks`, and `evidence_links` are for evidence drill-down,
 payload regeneration, and operations/debugging.
 
-Common query:
+Today page query:
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
 | `market` | string | `KR` | Market code |
 | `date` | date | server today | Page date in `YYYY-MM-DD` |
 | `user_id` | string | empty string | User-specific page key. The shared Today page uses `""`. |
+
+Issue Tracking endpoints use `market` and `user_id`; they do not require a page
+date because tracked issues are stored as a user list.
 
 ### GET `/today`
 
@@ -142,6 +119,29 @@ Response:
   "title": "Today",
   "status": "ready",
   "generated_at": "2026-06-17T09:00:00+09:00",
+  "indicator_values": {
+    "interest_rate": {
+      "today_value": 3.5,
+      "previous_value": 3.5,
+      "unit": "%"
+    },
+    "fx": {
+      "USD/KRW": {
+        "today_value": 1380.2,
+        "previous_value": 1375.9,
+        "unit": "KRW"
+      }
+    },
+    "inflation": {
+      "today_value": 2.1,
+      "previous_value": 2.0,
+      "unit": "%"
+    },
+    "growth": {
+      "today_value": 101.4,
+      "previous_value": 101.1
+    }
+  },
   "payload": {
     "page_type": "today",
     "daily_indicators": {},
@@ -156,8 +156,9 @@ Response:
 
 ### GET `/today/indicators`
 
-Returns `payload.daily_indicators`, including interest rates, FX pairs,
-inflation, and growth indicators.
+Returns `payload.daily_indicators` together with normalized `indicator_values`
+for interest rates, FX pairs, inflation, and growth indicators. The normalized
+objects include today's value and the previous value when present in the payload.
 
 ### GET `/today/headlines`
 
@@ -171,8 +172,66 @@ frontend can add the issue to Issue Tracking.
 
 ### GET `/today/tracked-issues`
 
-Returns `payload.tracked_issues`. Items are expected to include
-`subscription_key`, `is_subscribed`, and `unsubscribe_action`.
+Returns the user's Issue Tracking list from `tracked_issues`.
+
+Query:
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| `market` | string | `KR` | Market code |
+| `user_id` | string | empty string | User-specific tracking key |
+
+Response:
+
+```json
+[
+  {
+    "subscription_key": "macro:krw-weakness",
+    "is_subscribed": true,
+    "issue": {
+      "title": "KRW weakness",
+      "summary": "USD/KRW remains elevated."
+    },
+    "created_at": "2026-06-18T09:00:00+09:00",
+    "updated_at": "2026-06-18T09:00:00+09:00"
+  }
+]
+```
+
+### POST `/today/tracked-issues`
+
+Adds an issue to Issue Tracking or updates the stored issue payload for the same
+`subscription_key`. Returns `201 Created`.
+
+Query:
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| `market` | string | `KR` | Market code |
+| `user_id` | string | empty string | User-specific tracking key |
+
+Request:
+
+```json
+{
+  "subscription_key": "macro:krw-weakness",
+  "issue": {
+    "title": "KRW weakness",
+    "summary": "USD/KRW remains elevated."
+  }
+}
+```
+
+### DELETE `/today/tracked-issues/{subscription_key}`
+
+Removes an issue from Issue Tracking. Returns `204 No Content`.
+
+Query:
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| `market` | string | `KR` | Market code |
+| `user_id` | string | empty string | User-specific tracking key |
 
 ### GET `/today/events`
 

@@ -1,37 +1,13 @@
 from datetime import date, datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
 
 class HealthResponse(BaseModel):
     status: str
     version: str
     time: datetime
-
-
-class ListResponse(BaseModel):
-    items: list[Any]
-    next_cursor: str | None = None
-    total: int | None = None
-
-
-class CompanyRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    corp_code: str
-    stock_code: str
-    corp_name: str
-    corp_name_eng: str | None = None
-    market: str
-    sector: str | None = None
-    industry: str | None = None
-    fiscal_month: int | None = None
-    listed_at: date | None = None
-    delisted_at: date | None = None
-    is_active: bool
-    updated_at: datetime | None = None
 
 
 class CompanyIngest(BaseModel):
